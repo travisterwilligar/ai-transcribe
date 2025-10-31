@@ -8,12 +8,10 @@ or entire directories recursively.
 """
 
 import argparse
-import os
 import sys
 from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
-import json
 
 try:
     import whisper
