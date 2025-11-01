@@ -8,7 +8,9 @@ A local Python CLI tool for transcribing customer interview audio and video file
 - **Flexible Input**: Process single files, multiple files, or entire directories (recursive search)
 - **Multiple Formats**: Supports common audio (mp3, wav, m4a, flac, aac, ogg, wma) and video formats (mp4, mkv, avi, mov, wmv, flv, webm)
 - **Markdown Output**: Generates `.md` files next to original files with YAML frontmatter metadata
+ - **Markdown Output**: Generates `.md` files next to original files with YAML frontmatter metadata (or into a chosen output directory)
 - **Timestamps**: Optional segment timestamps in `[HH:MM:SS]` format
+ - **Paragraphs**: Groups segments into paragraphs based on silence gaps for more readable output
 - **Smart Skipping**: Avoids re-processing files unless `--overwrite` is specified
 - **Summary Statistics**: Displays detailed summary table with success/failure counts and total duration
 
@@ -110,11 +112,19 @@ python transcribe.py [paths...] [options]
 
 - `--timestamps`: Prefix each line with segment start time in `[HH:MM:SS]` format
 
-- `--overwrite`: Overwrite existing `.md` files (by default, existing files are skipped)
+- `--paragraphs` / `--no-paragraphs`: Enable/disable grouping segments into paragraphs by silence (default: enabled)
+- `--paragraph-gap-seconds N`: Silence duration that starts a new paragraph (default: `2.0` seconds)
+
+- Default behavior is to overwrite existing `.md` files when re-running.
+- `--skip-existing`: Skip files that already have a corresponding `.md` output (opt-out of overwriting)
+
+- `--output-dir DIR`: Write all `.md` files into `DIR`. When input paths include folders, the relative folder structure under those inputs is preserved in `DIR`. If files are provided directly, they are written at the top level of `DIR`.
 
 - `--workers N`: Number of parallel workers (currently processes sequentially)
 
 - `--extensions EXT [EXT ...]`: File extensions to process (default: common audio/video formats)
+
+- `--dry-run`: Print the list of media files discovered and the exact output paths that would be written, without downloading models or transcribing.
 
 ### Examples
 
@@ -125,12 +135,27 @@ python transcribe.py interviews/ --model small --timestamps
 
 Transcribe in Spanish, overwriting existing files:
 ```bash
-python transcribe.py *.mp3 --language es --overwrite
+python transcribe.py *.mp3 --language es
 ```
 
 Process only MP4 files:
 ```bash
 python transcribe.py videos/ --extensions .mp4
+```
+
+Skip previously created transcriptions (do not overwrite):
+```bash
+python transcribe.py interviews/ --skip-existing
+```
+
+Write outputs into a single folder while preserving structure:
+```bash
+python transcribe.py interviews/ --output-dir transcriptions/
+```
+
+Preview planned work without transcribing:
+```bash
+python transcribe.py interviews/ --dry-run
 ```
 
 ## Output Format
@@ -139,6 +164,10 @@ Each transcribed file generates a Markdown file with the same name and location:
 
 **Input:** `/path/to/interview.mp4`  
 **Output:** `/path/to/interview.md`
+
+If you provide `--output-dir transcriptions/` and the input file lives under an input folder (e.g., `interviews/2025-10/interview.mp4`), the output will be:
+
+**Output (with --output-dir):** `transcriptions/2025-10/interview.md`
 
 ### Example Output
 
@@ -169,6 +198,26 @@ created: 2025-10-31T10:30:45.123456
 [00:00:00] This is the first segment of transcribed text.
 [00:00:05] This is the second segment that starts at 5 seconds.
 [00:00:12] And so on for each segment detected by Whisper.
+
+Blank lines are inserted between paragraphs when a gap exceeds `--paragraph-gap-seconds`.
+
+### Paragraphs (no timestamps)
+
+When timestamps are not requested, segments are grouped by silence and rendered as paragraphs:
+
+```markdown
+---
+source: /absolute/path/to/interview.mp4
+model: base
+language: en
+duration_seconds: 245.60
+created: 2025-10-31T10:30:45.123456
+---
+
+This is the transcribed text from the first part of the conversation. Sentences flow naturally without timestamps.
+
+Here starts a new paragraph because there was a longer pause in the audio.
+```
 ```
 
 ## Summary Output
